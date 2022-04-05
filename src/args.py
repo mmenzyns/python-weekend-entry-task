@@ -18,7 +18,7 @@ def parse_args():
                         help="3 letter code of the destination airport")
 
     parser.add_argument("--bags",
-                        type=float,
+                        type=int,
                         default=0,
                         help="Number of requested bags")
 

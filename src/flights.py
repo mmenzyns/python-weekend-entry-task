@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-
+import copy
+import sys
 
 @dataclass
 class Flight:
@@ -13,7 +14,7 @@ class Flight:
     arrival: datetime
     base_price: float
     bag_price: float
-    bags_allowed: float
+    bags_allowed: int
 
     @staticmethod
     def from_row(row) -> Flight:
@@ -25,11 +26,13 @@ class Flight:
             datetime.fromisoformat(row["arrival"]),
             float(row["base_price"]),
             float(row["bag_price"]),
-            float(row["bags_allowed"]),
+            int(row["bags_allowed"]),
         )
 
     def covers_layover_time(self, departure: Flight) -> bool:
         delta = self.departure - departure
+        if delta.days != 0:
+            return False
         hours = delta.seconds / 3600
         return 1 < hours and hours < 6
 
@@ -42,25 +45,15 @@ class FlightsDataset():
         self.return_required = args.returning
 
     def filter_by_origin_departure(self, departure: datetime, layover: bool, origin: str) -> list[Flight]:
-        if layover is None or departure is None:
-            return [
-                flight for flight in self.flights
-                if flight.origin == origin and flight.bags_allowed >= self.bags_required
-            ]
-        if layover == False:
-            return [
-                flight for flight in self.flights
-                if flight.origin == origin
-                and flight.bags_allowed >= self.bags_required
-                and flight.departure >= departure
-            ]
-        if layover == True:
-            return [
-                flight for flight in self.flights
-                if flight.origin == origin
-                and flight.bags_allowed >= self.bags_required
-                and flight.covers_layover_time(departure)
-            ]
+        for flight in self.flights:
+            if origin is None:
+                yield flight
+            if flight.origin != origin or self.bags_required > flight.bags_allowed:
+                continue
+            if departure is not None:
+                if layover and not flight.covers_layover_time(departure) or not flight.departure >= departure:
+                    continue
+            yield flight
 
 
 class FlightsPath():
@@ -69,24 +62,32 @@ class FlightsPath():
 
     def __init__(self, args, flights: list[Flight] = []):
         self.flights = flights
+
+        self.bags_allowed = 0
+        self.bags_count = args.bags
                 
         self.origin = args.origin
         self.destination = args.destination
 
         self.total_price = 0
         self.travel_time = timedelta()
+
         self.returning = False
         self._airports = []
 
 
     def copy(self):
-        return FlightsPath(self.flights.copy())
+        return copy.deepcopy(self)
 
     def last_flight(self):
         return self.flights[-1]
 
+    def not_empty(self) -> bool:
+        return bool(self.flights)
+
     def add_flight(self, flight: Flight):
         self.flights.append(flight)
+        self.update_prices_and_bags()
 
     def add_airport(self, airport: str):
         self._airports.append(airport)
@@ -94,10 +95,16 @@ class FlightsPath():
     def clear_airports(self):
         self._airports = []
 
-    def count_price(self, bags: int):
+    def update_prices_and_bags(self):
         price = 0
-        for flight in self:
-            price += flight.base_price
-            price += flight.bag_price * bags
+        bags = None
 
-        return price
+        for flight in self.flights:
+            if bags is None or flight.bags_allowed < bags:
+                bags = flight.bags_allowed
+                
+            price += flight.base_price
+            price += flight.bag_price * self.bags_count
+
+        self.bags_allowed = bags
+        self.total_price = price
