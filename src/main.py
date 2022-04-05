@@ -1,23 +1,28 @@
 import csv
-from datetime import datetime
+
+from typing import Tuple, List
 
 from flights import FlightsDataset, FlightsPath, Flight
 from args import parse_args
 from print import print_json
+import argparse
 
-
-def expand_node(dataset: FlightsDataset, base_path: FlightsPath):
+def expand_node(dataset: FlightsDataset, base_path: FlightsPath) -> Tuple[List[FlightsPath], List[FlightsPath]]:
+    
     new_paths: list[FlightsPath] = []
     valid_paths: list[FlightsPath] = []
 
-    target = base_path.destination if not base_path.returning else base_path.origin
-    airport_to_expand = base_path.last_flight(
-    ).destination if base_path.not_empty() else base_path.origin
-    departure = base_path.last_flight().arrival if base_path.not_empty() else None
-    layover = False if not base_path._airports and base_path.returning else True
+    if base_path.not_empty():
+        airport_to_expand: str = base_path.last_flight().destination
+        departure = base_path.last_flight().arrival
+    else:
+        airport_to_expand: str = base_path.origin
+        departure = None
 
-    flights = list(dataset.filter_by_origin_departure(
-        departure, layover, origin=airport_to_expand))
+    layover: bool = base_path.not_empty and not base_path.returning
+    target: str = base_path.destination if not base_path.returning else base_path.origin
+
+    flights = dataset.filter_by_origin_departure(departure, layover, origin=airport_to_expand)
 
     for flight in flights:
         path = base_path.copy()
@@ -28,18 +33,18 @@ def expand_node(dataset: FlightsDataset, base_path: FlightsPath):
             # If user specified return ticket then continue to find a path back, but first check
             #  if return ticket wasn't already searched for right now
             if dataset.return_required and target == path.destination:
-                path._airports.clear()  # Now finding return route, so old airports don't matter
+                path.airports.clear()  # Now finding return route, so old airports don't matter
                 path.returning = True
                 new_paths.append(path)
             else:
                 valid_paths.append(path)
-        elif flight.destination not in path._airports:
+        elif flight.destination not in path.airports:
             new_paths.append(path)
 
     return valid_paths, new_paths
 
 
-def find_flights(dataset: FlightsDataset, args):
+def find_flights(dataset: FlightsDataset, args: argparse.Namespace) -> List[FlightsPath]:
 
     (valid_paths, paths) = expand_node(dataset, FlightsPath(args))
 

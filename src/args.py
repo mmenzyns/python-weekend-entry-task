@@ -26,6 +26,6 @@ def parse_args():
                         dest="returning",
                         action="store_true",
                         default=False,
-                        help="Is it a return flight?")
+                        help="Does user want a return flight?")
 
     return parser.parse_args()

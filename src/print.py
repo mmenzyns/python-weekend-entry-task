@@ -25,9 +25,7 @@ def datetime_handler(x):
     raise TypeError("Unknown type {}".format(type(x)))
 
 def print_json(paths):
-
-    # dicts = [[flight.__dict__ for flight in flight_path.flights] for flight_path in paths]
-    # print(dicts)
+    
     print(json.dumps(paths, default=datetime_handler))
 
 
