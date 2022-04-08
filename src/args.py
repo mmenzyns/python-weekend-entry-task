@@ -2,6 +2,8 @@ import argparse
 
 
 def parse_args():
+    """Parse arguments using argparse module
+    """
     parser = argparse.ArgumentParser(
         description="Find flights between two airports")
 

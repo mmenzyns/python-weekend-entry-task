@@ -2,51 +2,62 @@ import csv
 
 from typing import Tuple, List
 
-from flights import FlightsDataset, FlightsPath, Flight
+from flights import FlightsDataset, FlightsRoute, Flight
 from args import parse_args
 from print import print_json
 import argparse
 
-def expand_node(dataset: FlightsDataset, base_path: FlightsPath) -> Tuple[List[FlightsPath], List[FlightsPath]]:
-    
-    new_paths: list[FlightsPath] = []
-    valid_paths: list[FlightsPath] = []
 
-    if base_path.not_empty():
-        airport_to_expand: str = base_path.last_flight().destination
-        departure = base_path.last_flight().arrival
+def expand_node(dataset: FlightsDataset, base_route: FlightsRoute) -> Tuple[List[FlightsRoute], List[FlightsRoute]]:
+    """Takes last flight in base_path, and expands this path with every valid flight that the path can be continued upon.
+    Returns expanded paths in "expanded_paths". If any expanded path is a complete path, returns it in "new_paths".
+    """
+    completed_routes: list[FlightsRoute] = []
+    expanded_routes: list[FlightsRoute] = []
+
+    if base_route.not_empty():
+        # Select the last airport in path to be expanded
+        airport_to_expand: str = base_route.last_flight().destination
+        # Select the arrival to latest airport
+        arrival_to_airport = base_route.last_flight().arrival
     else:
-        airport_to_expand: str = base_path.origin
-        departure = None
+        # Select the origin to be expanded, since there is no path yet
+        airport_to_expand: str = base_route.origin_airport
+        # There is no time requirement for first flight in path
+        arrival_to_airport = None
 
-    layover: bool = base_path.not_empty and not base_path.returning
-    target: str = base_path.destination if not base_path.returning else base_path.origin
+    # If this is first flight in either direction, there is no layover time
+    layover: bool = len(base_route.airports) == 0
+    # Target is the final airport in either direction
+    target_airport: str = base_route.destination_airport if not base_route.returning else base_route.origin_airport
 
-    flights = dataset.filter_by_origin_departure(departure, layover, origin=airport_to_expand)
+    for flight in dataset.get_filtered_flights(arrival_to_airport, layover, origin=airport_to_expand):
+        # Prepare new route object for expanded route
+        route = base_route.copy()
+        route.add_flight(flight)
+        route.add_airport(flight.origin)
 
-    for flight in flights:
-        path = base_path.copy()
-        path.add_flight(flight)
-        path.add_airport(flight.origin)
-
-        if flight.destination == target:
-            # If user specified return ticket then continue to find a path back, but first check
-            #  if return ticket wasn't already searched for right now
-            if dataset.return_required and target == path.destination:
-                path.airports.clear()  # Now finding return route, so old airports don't matter
-                path.returning = True
-                new_paths.append(path)
+        if flight.destination == target_airport:
+            assert(dataset.return_required or target_airport == route.destination_airport)
+            # The route is completed in all cases except when route found is towards destination, and return flight is required
+            if dataset.return_required and target_airport == route.destination_airport:
+                # Return route is required, clear airports because it airports cannot be visited multiple times only in each direction
+                route.airports.clear()
+                route.returning = True
+                expanded_routes.append(route)
             else:
-                valid_paths.append(path)
-        elif flight.destination not in path.airports:
-            new_paths.append(path)
+                completed_routes.append(route)
+        elif flight.destination not in route.airports:
+            # Airport wasn't yet visited, expand by this flight
+            expanded_routes.append(route)
 
-    return valid_paths, new_paths
+    return completed_routes, expanded_routes
 
 
-def find_flights(dataset: FlightsDataset, args: argparse.Namespace) -> List[FlightsPath]:
-
-    (valid_paths, paths) = expand_node(dataset, FlightsPath(args))
+def find_flights(dataset: FlightsDataset, args: argparse.Namespace) -> List[FlightsRoute]:
+    """Searches the dataset using BFS. Returns valid_paths for an user.
+    """
+    (valid_paths, paths) = expand_node(dataset, FlightsRoute(args))
 
     while paths:
         next_depth_paths = []
