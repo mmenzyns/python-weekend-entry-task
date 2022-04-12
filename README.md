@@ -1,5 +1,28 @@
 # Python weekend entry task
 
+## Program description
+This script is a submission for a task for Kiwi.com birthday Python weekend in Brno. From given data in a form if 'csv' file, the script prints out a list of all flight combinations for a selected route, sorted by the total price for the trip.
+
+### Usage
+```bash
+python src/main.py [-h] [--bags BAGS] [--return] dataset origin destination
+```
+
+positional arguments:
+-  `dataset`:      path to a CSV file containing flight data
+-  `origin`:       3-letter code of the origin airport
+-  `destination`:  3-letter code of the destination airport
+
+options:
+-  `-h`, `--help`: show this help message and exit
+-  `--bags BAGS`:  number of requested bags
+-  `--return`:     does user want a return flight?
+
+### Requirements
+`Python 3.8+`
+
+## Task
+
 **Write a python script/module/package, that for a given flight data in a form of `csv` file (check the examples), prints out a structured list of all flight combinations for a selected route between airports A -> B, sorted by the final price for the trip.**
 
 ### Description
@@ -134,3 +157,4 @@ and get the following result:
     }
 ]
 ```
+

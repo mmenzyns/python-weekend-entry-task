@@ -1,18 +1,19 @@
 import json
-
 from datetime import datetime, timedelta
-from flights import Flight, FlightsPath
+from flights import Flight, FlightsRoute
 
-def datetime_handler(x):
+
+def handler(x):
     """Handler function for print_json to help the function with unrecognized objects
     """
     if isinstance(x, datetime):
         return x.isoformat()
     if isinstance(x, timedelta):
         return str(x)
-    if isinstance(x, FlightsPath):
-        # Select only desired attributes from FlightsPath object.
-        print_keys = ["flights", "bags_allowed", "bags_count", "origin", "destination", "total_price", "travel_time"]
+    if isinstance(x, FlightsRoute):
+        # Select only desired attributes from FlightsRoute object.
+        print_keys = ["flights", "bags_allowed", "bags_count",
+                      "origin", "destination", "total_price", "travel_time"]
         d = {}
         for key in print_keys:
             d[key] = x.__dict__[key]
@@ -21,9 +22,7 @@ def datetime_handler(x):
         return x.__dict__
     raise TypeError("Unknown type {}".format(type(x)))
 
+
 def print_json(paths):
     """Print paths using json module"""
-    print(json.dumps(paths, default=datetime_handler))
-
-
-        
+    print(json.dumps(paths, default=handler))
